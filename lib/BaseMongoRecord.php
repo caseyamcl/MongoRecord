@@ -2,7 +2,6 @@
 
 /**
  * BaseMongoRecord
- *
  */
 abstract class BaseMongoRecord implements MongoRecord
 {
@@ -21,8 +20,19 @@ abstract class BaseMongoRecord implements MongoRecord
    */
   private $new;
 
+  /**
+   * @var Mongo Database object (from PECL)
+   */
   public static $database = null;
+
+  /**
+   * @var MongoDb Database Connection object (from PECL)
+   */
   public static $connection = null;
+
+  /**
+   * @var int Timeout for finding records
+   */
   public static $findTimeout = 20000;
 
   /**
@@ -33,6 +43,7 @@ abstract class BaseMongoRecord implements MongoRecord
    */
   protected static $collectionName = null;
 
+  // --------------------------------------------------------------
 
   public function __construct($attributes = array(), $new = true)
   {
@@ -48,6 +59,8 @@ abstract class BaseMongoRecord implements MongoRecord
     }
   }
 
+  // --------------------------------------------------------------
+
   public function validate()
   {
     $this->beforeValidation();
@@ -55,6 +68,8 @@ abstract class BaseMongoRecord implements MongoRecord
     $this->afterValidation();
     return $retval;
   }
+
+  // --------------------------------------------------------------
 
   public function save(array $options = array())
   {
@@ -72,6 +87,8 @@ abstract class BaseMongoRecord implements MongoRecord
     return true;
   }
 
+  // --------------------------------------------------------------
+
   public function destroy()
   {
     $this->beforeDestroy();
@@ -82,6 +99,104 @@ abstract class BaseMongoRecord implements MongoRecord
       $collection->remove(array('_id' => $this->_id));
     }
   }
+
+  // --------------------------------------------------------------
+
+  public function getAttributes($as_obj = FALSE)
+  {
+    $arr = get_object_vars($this);
+  unset($arr['_id'], $arr['errors'], $arr['new']);
+    return ($as_obj) ? (object) $arr : $arr;
+  }
+
+  // --------------------------------------------------------------
+
+  public function getID()
+  {
+    return $this->_id;
+  }
+
+  // --------------------------------------------------------------
+
+  public function setID($id)
+  {
+    $this->_id = $id;
+  }
+
+  // --------------------------------------------------------------
+
+  public function __set($name, $val) {
+
+    if ('_id' == $name) {
+      $this->setID($val);
+    }
+    elseif (in_array($name, array_keys($this->getAttributes()))) {
+      $this->$name = $val;
+    }
+    else {
+      throw new \Exception("The attribute $name does not exist in the " . get_class($this) . " Entity!");
+    }
+  }
+
+  // --------------------------------------------------------------
+
+  public function __get($name) {
+
+    if (isset($this->getAttributes(TRUE)->$name)) {
+      return $this->getAttributes(TRUE)->$name;
+    }
+    else {
+      return NULL;
+    }
+  }
+
+  // --------------------------------------------------------------
+
+  public static function find($query = array(), $options = array())
+  {
+    $collection = self::getCollection();
+    $documents = $collection->find($query);
+    $className = get_called_class();
+
+    if (isset($options['sort']))
+      $documents->sort($options['sort']);
+
+    if (isset($options['offset']))
+      $documents->skip($options['offset']);
+
+    if (isset($options['limit']))
+      $documents->limit($options['limit']);
+
+    $documents->timeout($className::$findTimeout);
+
+    return new MongoRecordIterator($documents, $className);
+  }
+
+  // --------------------------------------------------------------
+
+  public static function findOne($query = array(), $options = array())
+  {
+    $options['limit'] = 1;
+
+    $results = self::find($query, $options);
+
+    if ($results)
+      return $results->current();
+    else
+      return null;
+  }
+
+  // --------------------------------------------------------------
+
+  public static function count($query = array())
+  {
+    $collection = self::getCollection();
+    $documents = $collection->count($query);
+
+    return $documents;
+  }
+
+  // --------------------------------------------------------------
 
   public static function findAll($query = array(), $options = array())
   {
@@ -111,91 +226,7 @@ abstract class BaseMongoRecord implements MongoRecord
     return $ret;
   }
 
-  public static function find($query = array(), $options = array())
-  {
-    $collection = self::getCollection();
-    $documents = $collection->find($query);
-    $className = get_called_class();
-
-    if (isset($options['sort']))
-      $documents->sort($options['sort']);
-
-    if (isset($options['offset']))
-      $documents->skip($options['offset']);
-
-    if (isset($options['limit']))
-      $documents->limit($options['limit']);
-
-    $documents->timeout($className::$findTimeout);
-
-    return new MongoRecordIterator($documents, $className);
-  }
-
-  public static function findOne($query = array(), $options = array())
-  {
-    $options['limit'] = 1;
-
-    $results = self::find($query, $options);
-
-    if ($results)
-      return $results->current();
-    else
-      return null;
-  }
-
-  public static function count($query = array())
-  {
-    $collection = self::getCollection();
-    $documents = $collection->count($query);
-
-    return $documents;
-  }
-
-  private static function instantiate($document)
-  {
-    if ($document)
-    {
-      $className = get_called_class();
-      return new $className($document, false);
-    }
-    else
-    {
-      return null;
-    }
-  }
-
-  public function getID()
-  {
-    return $this->_id;
-  }
-
-  public function setID($id)
-  {
-    $this->_id = $id;
-  }
-
-  public function __set($name, $val) {
-
-  	if ('_id' == $name) {
-  	  $this->setID($val);
-  	}
-    elseif (in_array($name, array_keys($this->getAttributes()))) {
-      $this->$name = $val;
-    }
-    else {
-      throw new \Exception("The attribute $name does not exist in the " . get_class($this) . " Entity!");
-    }
-  }
-
-  public function __get($name) {
-
-  	if (isset($this->getAttributes(TRUE)->$name)) {
-  	  return $this->getAttributes(TRUE)->$name;
-  	}
-  	else {
-  	  return NULL;
-  	}
-  }
+  // --------------------------------------------------------------
 
   // framework overrides/callbacks:
   public function beforeSave() {}
@@ -205,6 +236,7 @@ abstract class BaseMongoRecord implements MongoRecord
   public function beforeDestroy() {}
   public function afterNew() {}
 
+  // --------------------------------------------------------------
 
   protected function isValid()
   {
@@ -225,6 +257,23 @@ abstract class BaseMongoRecord implements MongoRecord
 
     return true;
   }
+
+  // --------------------------------------------------------------
+
+  private static function instantiate($document)
+  {
+    if ($document)
+    {
+      $className = get_called_class();
+      return new $className($document, false);
+    }
+    else
+    {
+      return null;
+    }
+  }
+
+  // --------------------------------------------------------------
 
   // core conventions
   protected static function getCollection()
@@ -253,27 +302,27 @@ abstract class BaseMongoRecord implements MongoRecord
     return $className::$connection->selectCollection($className::$database, $collectionName);
   }
 
+  // --------------------------------------------------------------
+
   public static function setFindTimeout($timeout)
   {
     $className = get_called_class();
     $className::$findTimeout = $timeout;
   }
 
+  // --------------------------------------------------------------
+
   public static function ensureIndex(array $keys, array $options = array())
   {
     return self::getCollection()->ensureIndex($keys, $options);
   }
+
+  // --------------------------------------------------------------
 
   public static function deleteIndex($keys)
   {
     return self::getCollection()->deleteIndex($keys);
   }
 
-  public function getAttributes($as_obj = FALSE)
-  {
-  	$arr = get_object_vars($this);
-	unset($arr['_id'], $arr['errors'], $arr['new']);
-    return ($as_obj) ? (object) $arr : $arr;
-  }
 }
 
