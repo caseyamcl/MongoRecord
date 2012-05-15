@@ -279,6 +279,9 @@ abstract class BaseMongoRecord implements MongoRecord
   protected static function getCollection()
   {
     $className = get_called_class();
+    if (strpos($className, '\\')) {
+      $className = array_pop(explode('\\', $className));
+    }
 
     if (null !== static::$collectionName)
     {
