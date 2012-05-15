@@ -279,10 +279,6 @@ abstract class BaseMongoRecord implements MongoRecord
   protected static function getCollection()
   {
     $className = get_called_class();
-    if (strpos($className, '\\')) {
-      $className = explode('\\', $className);
-      $className = array_pop($className);
-    }
 
     if (null !== static::$collectionName)
     {
@@ -290,8 +286,13 @@ abstract class BaseMongoRecord implements MongoRecord
     }
     else
     {
+      $collectionName = $className;
+      if (strpos($collectionName, '\\')) {
+        $collectionName = explode('\\', $collectionName);
+        $collectionName = array_pop($collectionName);
+      }
       $inflector = Inflector::getInstance();
-      $collectionName = $inflector->tableize($className);
+      $collectionName = $inflector->tableize($collectionName);
     }
 
     if ($className::$database == null)
