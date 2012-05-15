@@ -280,7 +280,8 @@ abstract class BaseMongoRecord implements MongoRecord
   {
     $className = get_called_class();
     if (strpos($className, '\\')) {
-      $className = array_pop(explode('\\', $className));
+      $className = explode('\\', $className)
+      $className = array_pop($className);
     }
 
     if (null !== static::$collectionName)
