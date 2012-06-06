@@ -152,6 +152,14 @@ abstract class BaseMongoRecord implements MongoRecord
 
   // --------------------------------------------------------------
 
+  public static function getAttributeNames($as_obj = FALSE) {
+    $arr = get_class_vars(get_called_class());
+    unset($arr['_id'], $arr['errors'], $arr['new']);
+    $arr = array_keys($arr);
+    return ($as_obj) ? (object) $arr :$arr;
+  }
+  // --------------------------------------------------------------
+
   public static function find($query = array(), $options = array())
   {
     $collection = self::getCollection();
