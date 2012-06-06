@@ -37,8 +37,8 @@ abstract class BaseMongoRecord implements MongoRecord
 
   /**
    * Collection name will be generated automaticaly if setted to null.
-   * If overridden in child class, then new collection name uses. 
-   * 
+   * If overridden in child class, then new collection name uses.
+   *
    * @var string
    */
   protected static $collectionName = null;
@@ -102,10 +102,18 @@ abstract class BaseMongoRecord implements MongoRecord
 
   // --------------------------------------------------------------
 
-  public function getAttributes($as_obj = FALSE)
+  public function getAttributes($as_obj = FALSE, $includeID = FALSE)
   {
     $arr = get_object_vars($this);
-  unset($arr['_id'], $arr['errors'], $arr['new']);
+    unset($arr['errors'], $arr['new']);
+
+    if ($includeID) {
+      $arr['_id'] = (string) $this->getID();
+    }
+    else {
+      unset($arr['_id']);
+    }
+
     return ($as_obj) ? (object) $arr : $arr;
   }
 
@@ -142,7 +150,10 @@ abstract class BaseMongoRecord implements MongoRecord
 
   public function __get($name) {
 
-    if (isset($this->getAttributes(TRUE)->$name)) {
+    if ('_id' == $name) {
+      return $this->getID();
+    }
+    elseif (isset($this->getAttributes(TRUE)->$name)) {
       return $this->getAttributes(TRUE)->$name;
     }
     else {
@@ -152,9 +163,14 @@ abstract class BaseMongoRecord implements MongoRecord
 
   // --------------------------------------------------------------
 
-  public static function getAttributeNames($as_obj = FALSE) {
+  public static function getAttributeNames($as_obj = FALSE, $includeID = FALSE) {
     $arr = get_class_vars(get_called_class());
-    unset($arr['_id'], $arr['errors'], $arr['new']);
+    unset($arr['errors'], $arr['new']);
+
+    if ( ! $includeID) {
+      unset($arr['_id']);
+    }
+
     $arr = array_keys($arr);
     return ($as_obj) ? (object) $arr :$arr;
   }
@@ -339,3 +355,4 @@ abstract class BaseMongoRecord implements MongoRecord
 
 }
 
+/* EOF: BaseMongoRecord.php */
