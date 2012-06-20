@@ -175,8 +175,8 @@ class TestEntityTwo extends BaseMongoRecord {
   protected $firstName;
   protected $email;
 
-  public function validatesEmail() {
-    return (strpos($this->email, '@') !== FALSE);
+  public static function validatesEmail($val) {
+    return (strpos($val, '@') !== FALSE);
   }
 }
 

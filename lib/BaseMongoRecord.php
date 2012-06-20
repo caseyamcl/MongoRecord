@@ -368,7 +368,7 @@ abstract class BaseMongoRecord implements MongoRecord
         $attrName = substr($method, 9);
         $attrName{0} = strtolower($attrName{0});
         if (in_array($attrName, $attrNames)) {
-          return call_user_func(array($this, $method), $this->$attrName);
+          return call_user_func(array($className, $method), $this->$attrName);
         }
         else {
           throw new Exception(sprintf("Cannot run the validator %s!  That attribute '%s' does not exist.", $method, $attrName));
