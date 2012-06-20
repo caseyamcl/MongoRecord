@@ -8,7 +8,7 @@ abstract class BaseMongoRecord implements MongoRecord
   /**
    * @var int Mongo Record ID
    */
-  protected $_id;
+  protected $_id = null;
 
   /**
    * @var array Errors
@@ -45,13 +45,25 @@ abstract class BaseMongoRecord implements MongoRecord
 
   // --------------------------------------------------------------
 
+  /**
+   * Constructor
+   * 
+   * @param array $attributes  Optionally preset some attributes
+   * @param boolean $new       true for new record
+   */
   public function __construct($attributes = array(), $new = true)
   {
     $this->new = $new;
     $this->errors = array();
 
     foreach($attributes as $k => $v) {
-      $this->__set($k, $v);
+
+      if ('_id' == $k) {
+        $this->_id = $v;
+      }
+      else {
+        $this->__set($k, $v);
+      }
     }
 
     if ($new) {
@@ -61,6 +73,11 @@ abstract class BaseMongoRecord implements MongoRecord
 
   // --------------------------------------------------------------
 
+  /**
+   * Validate the attributes
+   *
+   * @return boolean
+   */
   public function validate()
   {
     $this->beforeValidation();
@@ -71,15 +88,26 @@ abstract class BaseMongoRecord implements MongoRecord
 
   // --------------------------------------------------------------
 
+  /**
+   * Save the record to the database
+   *
+   * @param array $options
+   * @return boolean
+   */
   public function save(array $options = array())
   {
-    if (!$this->validate())
-      return false;
+    if ( ! $this->validate()) {
+      throw new MongoRecordValidationException("Validation failed!  Cannot save.");
+    }
 
     $this->beforeSave();
 
+    $attrs = $this->getAttributes();
+    
     $collection = self::getCollection();
-    $collection->save($this->getAttributes(), $options);
+    $res = $collection->save($attrs, $options);
+
+    $this->_id = (string) $attrs['_id'];
 
     $this->new = false;
     $this->afterSave();
@@ -89,20 +117,35 @@ abstract class BaseMongoRecord implements MongoRecord
 
   // --------------------------------------------------------------
 
+  /**
+   * Destroy the record in the database
+   *
+   * @return boolean|null
+   */
   public function destroy()
   {
     $this->beforeDestroy();
 
-    if (!$this->new)
+    if ( ! $this->new)
     {
       $collection = self::getCollection();
-      $collection->remove(array('_id' => $this->_id));
+      return $collection->remove(array('_id' => $this->_id));
+    }
+    else {
+      return null;
     }
   }
 
   // --------------------------------------------------------------
 
-  public function getAttributes($as_obj = FALSE, $includeID = FALSE)
+  /**
+   * Get the attributes
+   *
+   * @param boolean $asObj 
+   * @param boolean $includeID
+   * @return array|object
+   */
+  public function getAttributes($asObj = false, $includeID = false)
   {
     $arr = get_object_vars($this);
     unset($arr['errors'], $arr['new']);
@@ -114,11 +157,18 @@ abstract class BaseMongoRecord implements MongoRecord
       unset($arr['_id']);
     }
 
-    return ($as_obj) ? (object) $arr : $arr;
+    return ($asObj) ? (object) $arr : $arr;
   }
 
   // --------------------------------------------------------------
 
+  /**
+   * Get the ID
+   *
+   * Returns null if a new record
+   *
+   * @return null|string
+   */
   public function getID()
   {
     return $this->_id;
@@ -126,19 +176,12 @@ abstract class BaseMongoRecord implements MongoRecord
 
   // --------------------------------------------------------------
 
-  public function setID($id)
+  /**
+   * Magic Method provides access only to attributes
+   */
+  public function __set($name, $val)
   {
-    $this->_id = $id;
-  }
-
-  // --------------------------------------------------------------
-
-  public function __set($name, $val) {
-
-    if ('_id' == $name) {
-      $this->setID($val);
-    }
-    elseif (in_array($name, array_keys($this->getAttributes()))) {
+    if (in_array($name, array_keys($this->getAttributes()))) {
       $this->$name = $val;
     }
     else {
@@ -148,22 +191,33 @@ abstract class BaseMongoRecord implements MongoRecord
 
   // --------------------------------------------------------------
 
-  public function __get($name) {
-
+  /**
+   * Magic Method provides access only to attributes and ID
+   */
+  public function __get($name)
+  {
     if ('_id' == $name) {
       return $this->getID();
     }
-    elseif (isset($this->getAttributes(TRUE)->$name)) {
-      return $this->getAttributes(TRUE)->$name;
+    elseif (isset($this->getAttributes(true)->$name)) {
+      return $this->getAttributes(true)->$name;
     }
     else {
-      return NULL;
+      return null;
     }
   }
 
   // --------------------------------------------------------------
 
-  public static function getAttributeNames($as_obj = FALSE, $includeID = FALSE) {
+  /**
+   * Get the names of the attributes
+   *
+   * @param boolean $asObj
+   * @param boolean $includeID
+   * @return array|object
+   */
+  public static function getAttributeNames($asObj = false, $includeID = false)
+  {
     $arr = get_class_vars(get_called_class());
     unset($arr['errors'], $arr['new']);
 
@@ -172,10 +226,22 @@ abstract class BaseMongoRecord implements MongoRecord
     }
 
     $arr = array_keys($arr);
-    return ($as_obj) ? (object) $arr :$arr;
+    return ($asObj) ? (object) $arr :$arr;
   }
+
   // --------------------------------------------------------------
 
+  /**
+   * Find MongoDB Records
+   *
+   * This returns a MongoDB Iterator, which is useful for
+   * dealing with large numbers of results, but it only stores
+   * one record in memory at a time.
+   *
+   * @param array $query   See Mongo PECL documentation at php.net
+   * @param array $options See Mongo PECL documentation at php.net
+   * @return MongoRecordIterator 
+   */
   public static function find($query = array(), $options = array())
   {
     $collection = self::getCollection();
@@ -198,6 +264,13 @@ abstract class BaseMongoRecord implements MongoRecord
 
   // --------------------------------------------------------------
 
+  /**
+   * Find a single MongoDB Record
+   *
+   * @param array $query
+   * @param array $options
+   * @return object
+   */
   public static function findOne($query = array(), $options = array())
   {
     $options['limit'] = 1;
@@ -212,6 +285,12 @@ abstract class BaseMongoRecord implements MongoRecord
 
   // --------------------------------------------------------------
 
+  /**
+   * Count records in a collection, or records from a query
+   *
+   * @param array $query
+   * @return int
+   */ 
   public static function count($query = array())
   {
     $collection = self::getCollection();
@@ -222,6 +301,17 @@ abstract class BaseMongoRecord implements MongoRecord
 
   // --------------------------------------------------------------
 
+  /**
+   * Find MongoDB Records and return them as an array
+   *
+   * This works like the self::find() method, but returns an array
+   * of all of the records in memory, which is sometimes easier to
+   * work with than an Iterator
+   *
+   * @param array $query
+   * @param array $options
+   * @return array
+   */
   public static function findAll($query = array(), $options = array())
   {
     $collection = self::getCollection();
@@ -262,19 +352,26 @@ abstract class BaseMongoRecord implements MongoRecord
 
   // --------------------------------------------------------------
 
+  /**
+   * Validate values and return true or false 
+   *
+   * @return boolean
+   */
   protected function isValid()
   {
     $className = get_called_class();
-    $methods = get_class_methods($className);
+    $attrNames = $this->getAttributeNames();
 
-    foreach ($methods as $method)
-    {
+    foreach (get_class_methods($className) as $method) {
       if (substr($method, 0, 9) == 'validates')
       {
-        $propertyCall = 'get' . substr($method, 9);
-        if (!$className::$method($this->$propertyCall()))
-        {
-          return false;
+        $attrName = substr($method, 9);
+        $attrName{0} = strtolower($attrName{0});
+        if (in_array($attrName, $attrNames)) {
+          return call_user_func(array($this, $method), $this->$attrName);
+        }
+        else {
+          throw new Exception(sprintf("Cannot run the validator %s!  That attribute '%s' does not exist.", $method, $attrName));
         }
       }
     }
@@ -284,6 +381,12 @@ abstract class BaseMongoRecord implements MongoRecord
 
   // --------------------------------------------------------------
 
+  /** 
+   * Instantiate a record from a MongoDB object
+   *
+   * @param object $document
+   * @return object
+   */
   private static function instantiate($document)
   {
     if ($document)
@@ -299,7 +402,12 @@ abstract class BaseMongoRecord implements MongoRecord
 
   // --------------------------------------------------------------
 
-  // core conventions
+  /**
+   * Get the collection for this class
+   *
+   * @return MongoCollection
+   * @throws Exception
+   */
   protected static function getCollection()
   {
     $className = get_called_class();
@@ -310,11 +418,9 @@ abstract class BaseMongoRecord implements MongoRecord
     }
     else
     {
-      $collectionName = $className;
-      if (strpos($collectionName, '\\')) {
-        $collectionName = explode('\\', $collectionName);
-        $collectionName = array_pop($collectionName);
-      }
+      $collectionName = explode('\\', $className);
+      $collectionName = end($collectionName);
+
       $inflector = Inflector::getInstance();
       $collectionName = $inflector->tableize($collectionName);
     }
@@ -333,6 +439,11 @@ abstract class BaseMongoRecord implements MongoRecord
 
   // --------------------------------------------------------------
 
+  /**
+   * Set the timeout for connecting to MongoDB
+   *
+   * @param int $timeout
+   */
   public static function setFindTimeout($timeout)
   {
     $className = get_called_class();
@@ -341,6 +452,13 @@ abstract class BaseMongoRecord implements MongoRecord
 
   // --------------------------------------------------------------
 
+  /**
+   * Ensures that an index exists for the given keys and options
+   *
+   * @param array $keys
+   * @param array $options
+   * @return boolean  (true)
+   */
   public static function ensureIndex(array $keys, array $options = array())
   {
     return self::getCollection()->ensureIndex($keys, $options);
@@ -348,6 +466,12 @@ abstract class BaseMongoRecord implements MongoRecord
 
   // --------------------------------------------------------------
 
+  /**
+   * Deletes an index for given keys
+   *
+   * @param array $keys
+   * @return array
+   */
   public static function deleteIndex($keys)
   {
     return self::getCollection()->deleteIndex($keys);

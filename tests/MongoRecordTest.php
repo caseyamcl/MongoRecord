@@ -4,6 +4,7 @@ require_once(__DIR__ . '/../lib/MongoRecord.php');
 require_once(__DIR__ . '/../lib/MongoRecordIterator.php');
 require_once(__DIR__ . '/../lib/Inflector.php');
 require_once(__DIR__ . '/../lib/BaseMongoRecord.php');
+require_once(__DIR__ . '/../lib/MongoRecordValidationException.php');
 
 class MongoRecordTest extends PHPUnit_Framework_TestCase {
 
@@ -90,7 +91,73 @@ class MongoRecordTest extends PHPUnit_Framework_TestCase {
     $rec = $obj::findOne();
 
     $this->assertEquals('test@example.com', $rec->email);
-  }  
+  }
+
+  // --------------------------------------------------------------
+
+  function testIDisNullForUnsavedRecord() {
+    $obj = new TestEntity();
+    $obj->email = 'test@example.com';
+    $this->assertEquals(NULL, $obj->getID());
+  }
+
+  // --------------------------------------------------------------
+
+  function testSaveGeneratesAnIDForTheRecord() {
+
+    $obj = new TestEntity();
+    $obj->email = 'test@example.com';
+    $obj->save();
+    $this->assertRegExp("/[a-e0-9]+/", $obj->getID());
+    $this->assertGreaterThan(5, strlen($obj->getID()));
+  }
+ 
+  // --------------------------------------------------------------
+
+  function testValidationReturnsFalseForInvalidField() {
+
+    $obj = new TestEntityTwo();
+    $obj->email = 'personatpersoncom';
+    $this->assertFalse($obj->validate());
+  }
+
+  // --------------------------------------------------------------
+
+  function testValidationReturnsTrueForValidField() {
+
+    $obj = new TestEntityTwo();
+    $obj->email = 'person@person.com';
+    $this->assertTrue($obj->validate());
+  }
+
+  // --------------------------------------------------------------
+
+  function testSaveFailsForValidationFailures() {
+
+    $obj = new TestEntityTwo();
+    $obj->email = 'personatpersoncom';
+
+    try {
+      $obj->save();
+    } catch (MongoRecordValidationException $e) {
+      return;
+    }
+
+    $this->fail("Invalid validation should have thrown an exception!");
+
+  }
+
+  // --------------------------------------------------------------
+  // --------------------------------------------------------------
+
+  function demonstrateUse() {
+
+    $obj = new TestEntity();
+    $obj->email = 'person@example.com'; //Updates value
+    $obj->validate();   
+
+
+  }
 }
 
 // ============================================================
@@ -99,8 +166,18 @@ class TestEntity extends BaseMongoRecord {
 
   protected $email;
   protected $password;
-
 }
 
+// ============================================================
+
+class TestEntityTwo extends BaseMongoRecord {
+
+  protected $firstName;
+  protected $email;
+
+  public function validatesEmail() {
+    return (strpos($this->email, '@') !== FALSE);
+  }
+}
 
 /* EOF: MongoRecordTest.php */

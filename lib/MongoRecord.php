@@ -1,5 +1,8 @@
 <?php
 
+/**
+ * MongoRecord Interface
+ */
 interface MongoRecord
 {
 	public static function setFindTimeout($timeout);

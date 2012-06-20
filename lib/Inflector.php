@@ -1,6 +1,6 @@
 <?php
-/* Inflector logic borrowed from CakePHP framework */
 
+/* Inflector logic borrowed from CakePHP framework */
 
 /* SVN FILE: $Id$ */
 /**
