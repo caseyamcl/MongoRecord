@@ -3,7 +3,7 @@
 /**
  * BaseMongoRecord
  */
-abstract class BaseMongoRecord implements MongoRecord
+abstract class BaseMongoRecord implements MongoRecord, Iterator
 {
   /**
    * @var int Mongo Record ID
@@ -19,6 +19,11 @@ abstract class BaseMongoRecord implements MongoRecord
    * @var boolean Is New Record
    */
   private $new;
+
+  /**
+   * @var int Iterator Position
+   */
+  private $iteratorPosition = 0;
 
   /**
    * @var Mongo Database object (from PECL)
@@ -68,6 +73,39 @@ abstract class BaseMongoRecord implements MongoRecord
 
     if ($new) {
       $this->afterNew();
+    }
+  }
+
+  // --------------------------------------------------------------
+
+  /**
+   * Magic Method provides access only to attributes
+   */
+  public function __set($name, $val)
+  {
+    if (in_array($name, array_keys($this->getAttributes()))) {
+      $this->$name = $val;
+    }
+    else {
+      throw new \Exception("The attribute $name does not exist in the " . get_class($this) . " Entity!");
+    }
+  }
+
+  // --------------------------------------------------------------
+
+  /**
+   * Magic Method provides access only to attributes and ID
+   */
+  public function __get($name)
+  {
+    if ('_id' == $name) {
+      return $this->getID();
+    }
+    elseif (isset($this->getAttributes(true)->$name)) {
+      return $this->getAttributes(true)->$name;
+    }
+    else {
+      return null;
     }
   }
 
@@ -139,30 +177,6 @@ abstract class BaseMongoRecord implements MongoRecord
   // --------------------------------------------------------------
 
   /**
-   * Get the attributes
-   *
-   * @param boolean $asObj 
-   * @param boolean $includeID
-   * @return array|object
-   */
-  public function getAttributes($asObj = false, $includeID = false)
-  {
-    $arr = get_object_vars($this);
-    unset($arr['errors'], $arr['new']);
-
-    if ($includeID) {
-      $arr['_id'] = (string) $this->getID();
-    }
-    else {
-      unset($arr['_id']);
-    }
-
-    return ($asObj) ? (object) $arr : $arr;
-  }
-
-  // --------------------------------------------------------------
-
-  /**
    * Get the ID
    *
    * Returns null if a new record
@@ -177,34 +191,25 @@ abstract class BaseMongoRecord implements MongoRecord
   // --------------------------------------------------------------
 
   /**
-   * Magic Method provides access only to attributes
+   * Get the attributes
+   *
+   * @param boolean $asObj 
+   * @param boolean $includeID
+   * @return array|object
    */
-  public function __set($name, $val)
+  public function getAttributes($asObj = false, $includeID = false)
   {
-    if (in_array($name, array_keys($this->getAttributes()))) {
-      $this->$name = $val;
+    $arr = get_object_vars($this);
+    unset($arr['errors'], $arr['new'], $arr['iteratorPosition']);
+
+    if ($includeID) {
+      $arr['_id'] = (string) $this->getID();
     }
     else {
-      throw new \Exception("The attribute $name does not exist in the " . get_class($this) . " Entity!");
+      unset($arr['_id']);
     }
-  }
 
-  // --------------------------------------------------------------
-
-  /**
-   * Magic Method provides access only to attributes and ID
-   */
-  public function __get($name)
-  {
-    if ('_id' == $name) {
-      return $this->getID();
-    }
-    elseif (isset($this->getAttributes(true)->$name)) {
-      return $this->getAttributes(true)->$name;
-    }
-    else {
-      return null;
-    }
+    return ($asObj) ? (object) $arr : $arr;
   }
 
   // --------------------------------------------------------------
@@ -219,7 +224,8 @@ abstract class BaseMongoRecord implements MongoRecord
   public static function getAttributeNames($asObj = false, $includeID = false)
   {
     $arr = get_class_vars(get_called_class());
-    unset($arr['errors'], $arr['new']);
+    unset($arr['errors'], $arr['new'], $arr['iteratorPosition']);
+    unset($arr['database'], $arr['connection'], $arr['findTimeout'], $arr['collectionName']);
 
     if ( ! $includeID) {
       unset($arr['_id']);
@@ -230,6 +236,53 @@ abstract class BaseMongoRecord implements MongoRecord
   }
 
   // --------------------------------------------------------------
+
+  /*
+   * ITERATOR METHODS
+   */
+  public function current() {
+    $anames = $this->getAttributeNames(false, true);
+    $attrs = $this->getAttributes(false, true);
+    return $attrs[$anames[$this->iteratorPosition]];
+  }
+
+  public function key() {
+    $anames = $this->getAttributeNames(false, true);
+    return $anames[$this->iteratorPosition];
+  }
+
+  public function next() {
+    ++$this->iteratorPosition;
+  }
+
+  public function rewind() {
+    $this->iteratorPosition = 0;
+  }
+
+  public function valid() {
+    $anames = $this->getAttributeNames(false, true);
+    return isset($anames[$this->iteratorPosition]);
+  }
+
+
+  // --------------------------------------------------------------
+
+  /*
+   * CUSTOM OVERRIDES / CALLBACKS
+   */
+  public function beforeSave() {}
+  public function afterSave() {}
+  public function beforeValidation() {}
+  public function afterValidation() {}
+  public function beforeDestroy() {}
+  public function afterNew() {}
+
+
+  // --------------------------------------------------------------
+
+  /*
+   * STATIC METHODS
+   */
 
   /**
    * Find MongoDB Records
@@ -339,16 +392,6 @@ abstract class BaseMongoRecord implements MongoRecord
 
     return $ret;
   }
-
-  // --------------------------------------------------------------
-
-  // framework overrides/callbacks:
-  public function beforeSave() {}
-  public function afterSave() {}
-  public function beforeValidation() {}
-  public function afterValidation() {}
-  public function beforeDestroy() {}
-  public function afterNew() {}
 
   // --------------------------------------------------------------
 

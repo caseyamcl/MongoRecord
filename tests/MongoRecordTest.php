@@ -69,6 +69,15 @@ class MongoRecordTest extends PHPUnit_Framework_TestCase {
 
   // --------------------------------------------------------------
 
+  function testGetAttributeNamesReturnsCorrectList() {
+
+    $obj = new TestEntity();
+    $this->assertEquals(array('email', 'password'), $obj->getAttributeNames());
+  }
+
+  // --------------------------------------------------------------
+
+
   function testSetAttributesSetsCorrectlyForValidAttrs() {
 
     $obj = new TestEntity();
@@ -145,6 +154,24 @@ class MongoRecordTest extends PHPUnit_Framework_TestCase {
 
     $this->fail("Invalid validation should have thrown an exception!");
 
+  }
+
+  // --------------------------------------------------------------
+
+  function testIterator() {
+
+    $obj = new TestEntity();
+    $obj->email = 'someguy@example.com';
+    $obj->password = 'pass1234';
+
+    $expectedArr = array('email' => 'someguy@example.com', 'password' => 'pass1234', '_id' => NULL);
+    $testArr = array();
+
+    foreach($obj as $k => $v) {
+       $testArr[$k] = $v;
+    }
+
+    $this->assertEquals($testArr, $expectedArr);
   }
 
   // --------------------------------------------------------------
