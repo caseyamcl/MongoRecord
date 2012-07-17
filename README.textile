@@ -1,10 +1,10 @@
-h1. MongoRecord
+h1. MongoActiveRecord
 
-** Update this to document the changes in my (caseyamcl) fork!
+MongoActiveRecord is a PHP Mongo Active Record Pattern ORM layer built on top of the PHP "Mongo PECL extension":http://pecl.php.net/package/mongo 
 
-MongoRecord is a PHP Mongo ORM layer built on top of the PHP "Mongo PECL extension":http://pecl.php.net/package/mongo 
+MongoActiveRecord is a fork of the "MongoRecord Tool"http://github.com/###/MongoRecord, which was an  extraction from online classifieds site "Oodle":http://www.oodle.com. Oodle's requirements for a manageable, easy to understand interface for dealing with the super-scalable Mongo datastore was the primary reason for MongoRecord. It was developed to use with PHP applications looking to add Mongo's scaling capabilities while dealing with a nice abstraction layer.
 
-MongoRecord is an extraction from online classifieds site "Oodle":http://www.oodle.com. Oodle's requirements for a manageable, easy to understand interface for dealing with the super-scalable Mongo datastore was the primary reason for MongoRecord. It was developed to use with PHP applications looking to add Mongo's scaling capabilities while dealing with a nice abstraction layer.
+This fork differs from the original in that it requires that you explicitely declare the properties for your objects.  This allows you to define the data structure in your application, and be able to easily see exactly what properties each record in each collection contains simply by looking at the source of your MongoRecord classes.
 
 h2. Features
 
@@ -27,11 +27,14 @@ h2. Usage
 
 h3. Basic
 
-Using MongoRecord is as simple as declaring classes that are extensions of the base ORM class.
+Using MongoRecord is as simple as declaring classes that are extensions of the base ORM class, and adding @private@ or @protected@ properties for attributes you wish to have.
 
 pre.. 
 class Person extends BaseMongoRecord
 {
+    protected $firstName;
+
+    protected $lastName;
 }
 
 // initialize connection and database name
@@ -76,13 +79,24 @@ Person::find(array(), array('sort' => array('name' => 1), 'offset' => 10, 'limit
 
 h3. Attributes
 
-Attributes can be set in bulk on the constructor, one-by-one, or chained.
+Attributes can be set several different ways:
+
+In bulk on the constructor:
 
 pre.. 
 $person = new Person(array('name' => 'Bob', 'description' => 'foobar'));
+
+One-by-One:
+
+pre..
+$person->age = 25;
+$pseron->gender = 'Male';
+
+Chained:
+
+pre..
 $person->setAge(25)->setGender("Male");
 $person->save(); // returns true or false
-
 Person::find(array('name' => 'Bob', 'gender' => 'Male')); // finds all male Bobs in the people collection.
 
 h3. Validations
