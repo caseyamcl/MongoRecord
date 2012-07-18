@@ -350,7 +350,7 @@ abstract class BaseMongoRecord implements MongoRecord, Iterator
     public static function findByID($id)
     {
         $query = array('_id' => new MongoId($id));
-        return self::findOne($query));
+        return self::findOne($query);
     }
 
     // --------------------------------------------------------------
