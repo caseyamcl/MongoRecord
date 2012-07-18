@@ -1,7 +1,7 @@
 <?php
 
 class MongoRecordValidationException extends RuntimeException {
-  /* Pass */
+    /* Pass */
 }
 
 /* EOF: MongoRecordException.php */
