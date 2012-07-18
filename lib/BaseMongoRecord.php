@@ -339,6 +339,23 @@ abstract class BaseMongoRecord implements MongoRecord, Iterator
   // --------------------------------------------------------------
 
   /**
+   * Find a record by its ID
+   *
+   * Shortcut function that just calls ::findOne() with MongoID($id)
+   * See: http://php.net/manual/en/mongocollection.findone.php#example-1434
+   *
+   * @param string $id
+   * @return object
+   */
+  public static function findByID($id)
+  {
+    $query = array('_id' => new MongoId($id);
+    return self::findOne($query));
+  }
+
+  // --------------------------------------------------------------
+
+  /**
    * Count records in a collection, or records from a query
    *
    * @param array $query
