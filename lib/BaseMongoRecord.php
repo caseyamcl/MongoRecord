@@ -140,7 +140,7 @@ abstract class BaseMongoRecord implements MongoRecord, Iterator
 
         $this->beforeSave();
 
-        $attrs = $this->getAttributes();
+        $attrs = $this->getAttributes(false, true);
         
         $collection = self::getCollection();
         $res = $collection->save($attrs, $options);
