@@ -141,7 +141,11 @@ abstract class BaseMongoRecord implements MongoRecord, Iterator
         $this->beforeSave();
 
         $attrs = $this->getAttributes(false, true);
-        
+
+        if (empty($attrs['_id'])) {
+            unset($attrs['_id']);
+        }
+
         $collection = self::getCollection();
         $res = $collection->save($attrs, $options);
 
