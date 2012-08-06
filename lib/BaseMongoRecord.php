@@ -140,16 +140,16 @@ abstract class BaseMongoRecord implements MongoRecord, Iterator
 
         $this->beforeSave();
 
-        $attrs = $this->getAttributes(false, true);
+        $attrs = $this->getAttributes();
 
-        if (empty($attrs['_id'])) {
-            unset($attrs['_id']);
+        if ($this->_id) {
+            $attrs['_id'] = $this->_id;
         }
 
         $collection = self::getCollection();
         $res = $collection->save($attrs, $options);
 
-        $this->_id = (string) $attrs['_id'];
+        $this->_id = $attrs['_id'];
 
         $this->new = false;
         $this->afterSave();
@@ -189,7 +189,7 @@ abstract class BaseMongoRecord implements MongoRecord, Iterator
      */
     public function getID()
     {
-        return $this->_id;
+        return (string) $this->_id;
     }
 
     // --------------------------------------------------------------
@@ -207,7 +207,7 @@ abstract class BaseMongoRecord implements MongoRecord, Iterator
         unset($arr['errors'], $arr['new'], $arr['iteratorPosition']);
 
         if ($includeID) {
-            $arr['_id'] = (string) $this->getID();
+            $arr['_id'] = $this->getID();
         }
         else {
             unset($arr['_id']);
