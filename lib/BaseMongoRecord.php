@@ -229,13 +229,10 @@ abstract class BaseMongoRecord implements MongoRecord, Iterator
      */
     public static function getAttributeNames($asObj = false, $includeID = false)
     {
-        $arr = get_class_vars(get_called_class());
-
-        //Remove static attributes
-        unset($arr['database'], $arr['connection'], $arr['findTimeout'], $arr['collectionName']);
-
-        //Set keys as values
-        $arr = array_keys($arr);
+        //Get an instance of the class
+        $className = get_called_class();
+        $that = new $className;
+        $arr = array_keys(get_object_vars($that));
 
         //Filter any '_' items out
         $arr = array_filter($arr, function($v) {

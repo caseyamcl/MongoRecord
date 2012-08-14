@@ -197,9 +197,20 @@ class MongoRecordTest extends PHPUnit_Framework_TestCase {
     $obj->firstName = 'Somebody';
     $obj->save();
 
-    //var_dump(get_class_methods(get_class($this->db)));
     $rec = $this->db->test_entity_threes->findOne(array('firstName' => 'Somebody', 'email' => 'somebody@example.com'));
     $this->assertEquals(array('_id', 'firstName', 'email'), array_keys((array) $rec));
+  }
+
+  // --------------------------------------------------------------
+
+  function testStaticPropertiesInChildClassesDoNotGetCountedAsAttributes()
+  {
+    $obj = new TestEntityFour();
+    $obj->email = 'someemail@example.com';
+    $obj->firstName = 'Somename';
+    $obj->save();
+
+    $this->assertEquals(array('firstName', 'email', '_id'), array_keys($obj->getAttributes(false, true)));
   }
 }
 
@@ -233,4 +244,11 @@ class TestEntityThree extends TestEntityTwo {
 
 }
 
+// ============================================================
+
+class TestEntityFour extends TestEntityThree {
+
+  public static $staticProperty = null;
+
+}
 /* EOF: MongoRecordTest.php */
