@@ -8,22 +8,22 @@ abstract class BaseMongoRecord implements MongoRecord, Iterator
     /**
      * @var int Mongo Record ID
      */
-    protected $_id = null;
+    protected $__id = null;
 
     /**
      * @var array Errors
      */
-    protected $errors;
+    protected $__errors;
 
     /**
      * @var boolean Is New Record
      */
-    private $new;
+    private $__isNew;
 
     /**
      * @var int Iterator Position
      */
-    private $iteratorPosition = 0;
+    private $__iteratorPosition = 0;
 
     /**
      * @var Mongo Database object (from PECL)
@@ -54,24 +54,24 @@ abstract class BaseMongoRecord implements MongoRecord, Iterator
      * Constructor
      * 
      * @param array $attributes  Optionally preset some attributes
-     * @param boolean $new       true for new record
+     * @param boolean $isNew       true for new record
      */
-    public function __construct($attributes = array(), $new = true)
+    public function __construct($attributes = array(), $isNew = true)
     {
-        $this->new = $new;
-        $this->errors = array();
+        $this->__isNew = $isNew;
+        $this->__errors = array();
 
         foreach($attributes as $k => $v) {
 
             if ('_id' == $k) {
-                $this->_id = $v;
+                $this->__id = $v;
             }
             else {
                 $this->__set($k, $v);
             }
         }
 
-        if ($new) {
+        if ($isNew) {
             $this->afterNew();
         }
     }
@@ -140,14 +140,18 @@ abstract class BaseMongoRecord implements MongoRecord, Iterator
 
         $this->beforeSave();
 
-        $attrs = $this->getAttributes(false, true);
-        
+        $attrs = $this->getAttributes();
+
+        if ($this->__id) {
+            $attrs['_id'] = $this->__id;
+        }
+
         $collection = self::getCollection();
         $res = $collection->save($attrs, $options);
 
-        $this->_id = (string) $attrs['_id'];
+        $this->__id = $attrs['_id'];
 
-        $this->new = false;
+        $this->__isNew = false;
         $this->afterSave();
 
         return true;
@@ -164,10 +168,10 @@ abstract class BaseMongoRecord implements MongoRecord, Iterator
     {
         $this->beforeDestroy();
 
-        if ( ! $this->new)
+        if ( ! $this->__isNew)
         {
             $collection = self::getCollection();
-            return $collection->remove(array('_id' => $this->_id));
+            return $collection->remove(array('_id' => $this->__id));
         }
         else {
             return null;
@@ -185,7 +189,7 @@ abstract class BaseMongoRecord implements MongoRecord, Iterator
      */
     public function getID()
     {
-        return $this->_id;
+        return (string) $this->__id;
     }
 
     // --------------------------------------------------------------
@@ -199,11 +203,13 @@ abstract class BaseMongoRecord implements MongoRecord, Iterator
      */
     public function getAttributes($asObj = false, $includeID = false)
     {
-        $arr = get_object_vars($this);
-        unset($arr['errors'], $arr['new'], $arr['iteratorPosition']);
+        $arr = array();
+        foreach(self::getAttributeNames($asObj, $includeID) as $attrName) {
+            $arr[$attrName] = $this->$attrName;
+        }
 
         if ($includeID) {
-            $arr['_id'] = (string) $this->getID();
+            $arr['_id'] = $this->getID();
         }
         else {
             unset($arr['_id']);
@@ -224,15 +230,19 @@ abstract class BaseMongoRecord implements MongoRecord, Iterator
     public static function getAttributeNames($asObj = false, $includeID = false)
     {
         $arr = get_class_vars(get_called_class());
-        unset($arr['errors'], $arr['new'], $arr['iteratorPosition']);
+
+        //Remove static attributes
         unset($arr['database'], $arr['connection'], $arr['findTimeout'], $arr['collectionName']);
 
-        if ( ! $includeID) {
-            unset($arr['_id']);
-        }
-
+        //Set keys as values
         $arr = array_keys($arr);
-        return ($asObj) ? (object) $arr :$arr;
+
+        //Filter any '_' items out
+        $arr = array_filter($arr, function($v) {
+            return (strcmp($v{0}, '_') !== 0);
+        });
+
+        return ($asObj) ? (object) $arr : $arr;
     }
 
     // --------------------------------------------------------------
@@ -242,26 +252,34 @@ abstract class BaseMongoRecord implements MongoRecord, Iterator
      */
     public function current() {
         $anames = $this->getAttributeNames(false, true);
+        $anames[] = '_id';
+
         $attrs = $this->getAttributes(false, true);
-        return $attrs[$anames[$this->iteratorPosition]];
+        $attrs['_id'] = $this->getID();
+
+        return $attrs[$anames[$this->__iteratorPosition]];
     }
 
     public function key() {
         $anames = $this->getAttributeNames(false, true);
-        return $anames[$this->iteratorPosition];
+        $anames[] = '_id';
+        
+        return $anames[$this->__iteratorPosition];
     }
 
     public function next() {
-        ++$this->iteratorPosition;
+        ++$this->__iteratorPosition;
     }
 
     public function rewind() {
-        $this->iteratorPosition = 0;
+        $this->__iteratorPosition = 0;
     }
 
     public function valid() {
         $anames = $this->getAttributeNames(false, true);
-        return isset($anames[$this->iteratorPosition]);
+        $anames[] = '_id';
+
+        return isset($anames[$this->__iteratorPosition]);
     }
 
 

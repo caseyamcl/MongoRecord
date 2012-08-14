@@ -23,7 +23,6 @@ class MongoRecordTest extends PHPUnit_Framework_TestCase {
 
       BaseMongoRecord::$connection = $this->conn;
       BaseMongoRecord::$database = 'testdb';
-
     }
   }
 
@@ -175,15 +174,32 @@ class MongoRecordTest extends PHPUnit_Framework_TestCase {
   }
 
   // --------------------------------------------------------------
+
+  /**
+   * Test that any properties beginning with $_... are not
+   * seen as attributes
+   */
+  function testNonAttributePropertiesDoNotGetSeenAsAttributes()
+  {
+    $obj = new TestEntityThree();
+    $obj->email = 'somebody@example.com';
+    $obj->firstName = 'Somebody';
+
+    $this->assertEquals(array('firstName' => 'Somebody', 'email' => 'somebody@example.com'), $obj->getAttributes());
+  }
+
   // --------------------------------------------------------------
 
-  function demonstrateUse() {
+  function testNonAttributePropertiesDoNotGetSavedAsAttributes()
+  {
+    $obj = new TestEntityThree();
+    $obj->email = 'somebody@example.com';
+    $obj->firstName = 'Somebody';
+    $obj->save();
 
-    $obj = new TestEntity();
-    $obj->email = 'person@example.com'; //Updates value
-    $obj->validate();   
-
-
+    //var_dump(get_class_methods(get_class($this->db)));
+    $rec = $this->db->test_entity_threes->findOne(array('firstName' => 'Somebody', 'email' => 'somebody@example.com'));
+    $this->assertEquals(array('_id', 'firstName', 'email'), array_keys((array) $rec));
   }
 }
 
@@ -205,6 +221,16 @@ class TestEntityTwo extends BaseMongoRecord {
   public static function validatesEmail($val) {
     return (strpos($val, '@') !== FALSE);
   }
+}
+
+// ============================================================
+
+class TestEntityThree extends TestEntityTwo {
+
+  public    $_publicItem    = 'abc';
+  private   $_privateItem   = 'def';
+  protected $_protectedItem = 'ghi';
+
 }
 
 /* EOF: MongoRecordTest.php */
