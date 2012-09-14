@@ -8,7 +8,7 @@ class MongoRecordIterator implements Iterator, Countable
     protected $current; // a PHP5.3 pointer hack to make current() work
     protected $cursor;
     protected $className;
-  
+
     public function __construct($cursor, $className)
     {
         $this->cursor = $cursor;
@@ -16,33 +16,33 @@ class MongoRecordIterator implements Iterator, Countable
         $this->cursor->rewind();
         $this->current = $this->current();
     }
-  
+
     public function current()
     {
         $this->current = $this->instantiate($this->cursor->current());
         return $this->current;
     }
 
-    public function count()
+    public function count($foundOnly = false)
     {
-        return $this->cursor->count();
+        return $this->cursor->count($foundOnly);
     }
-  
+
     public function key()
     {
         return $this->cursor->key();
     }
-  
+
     public function next()
     {
         $this->cursor->next();
     }
-  
+
     public function rewind()
     {
         $this->cursor->rewind();
     }
-  
+
     public function valid()
     {
         return $this->cursor->valid();
